@@ -84,9 +84,15 @@ export default function AppointmentsPage() {
     return collection(db, "services");
   }, [db]);
 
+  const beauticiansQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "beauticians"), orderBy("name", "asc"));
+  }, [db]);
+
   const { data: appointments = [] } = useCollection(appointmentsQuery);
   const { data: customers = [] } = useCollection(customersQuery);
   const { data: services = [] } = useCollection(servicesQuery);
+  const { data: beauticians = [] } = useCollection(beauticiansQuery);
   
   const form = useForm<z.infer<typeof appointmentSchema>>({
     resolver: zodResolver(appointmentSchema),
@@ -139,8 +145,6 @@ export default function AppointmentsPage() {
     const h = i + 9;
     return `${h < 10 ? '0' + h : h}:00`;
   });
-
-  const beauticians = ['Zeynep K.', 'Elif S.', 'Eda M.'];
 
   // Günlük görünüm için randevuları filtrele
   const dailyAppointments = useMemo(() => {
@@ -219,8 +223,8 @@ export default function AppointmentsPage() {
                             <SelectTrigger><SelectValue placeholder="Uzman Seçin" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {beauticians.map((b) => (
-                              <SelectItem key={b} value={b}>{b}</SelectItem>
+                            {beauticians.map((b: any) => (
+                              <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -277,14 +281,16 @@ export default function AppointmentsPage() {
               />
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="text-xs font-headline uppercase tracking-wider text-muted-foreground mb-4">Uzmanlar</h3>
-                {beauticians.map((staff) => (
-                  <div key={staff} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors border border-transparent hover:border-border">
+                {beauticians.length > 0 ? beauticians.map((staff: any) => (
+                  <div key={staff.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors border border-transparent hover:border-border">
                     <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-primary/60">
-                      {staff.charAt(0)}
+                      {staff.name.charAt(0)}
                     </div>
-                    <span className="text-sm font-medium">{staff}</span>
+                    <span className="text-sm font-medium">{staff.name}</span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-xs text-muted-foreground italic">Henüz uzman eklenmemiş.</p>
+                )}
               </div>
             </CardContent>
           </Card>

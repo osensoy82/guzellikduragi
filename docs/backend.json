@@ -54,6 +54,16 @@
         "duration": { "type": "string", "description": "Süre (dk)" }
       },
       "required": ["name", "price", "duration"]
+    },
+    "Beautician": {
+      "title": "Uzman",
+      "description": "Merkez çalışanı / Uzman",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Uzman adı soyadı" },
+        "specialty": { "type": "string", "description": "Uzmanlık alanı" }
+      },
+      "required": ["name"]
     }
   },
   "auth": {
@@ -75,6 +85,10 @@
     "/services/{serviceId}": {
       "schema": "Service",
       "description": "Hizmet kataloğu"
+    },
+    "/beauticians/{beauticianId}": {
+      "schema": "Beautician",
+      "description": "Uzman kayıtları"
     }
   }
 }

@@ -10,7 +10,8 @@ import {
   BarChart3, 
   Settings,
   LogOut,
-  Flower2
+  Flower2,
+  UserCheck
 } from "lucide-react";
 import { 
   Sidebar, 
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/" },
   { name: "Müşteriler", icon: Users, href: "/customers" },
+  { name: "Uzmanlar", icon: UserCheck, href: "/beauticians" },
   { name: "Randevular", icon: Calendar, href: "/appointments" },
   { name: "Hizmetler", icon: Sparkles, href: "/services" },
   { name: "Envanter", icon: Package, href: "/inventory" },
