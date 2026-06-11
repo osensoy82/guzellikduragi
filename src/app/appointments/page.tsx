@@ -14,7 +14,10 @@ import {
   User, 
   Plus,
   Trash2,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  XCircle,
+  MoreVertical
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -46,8 +49,14 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -111,7 +120,7 @@ export default function AppointmentsPage() {
         ...values,
         customerName: selectedCustomer?.name || "Bilinmeyen Müşteri",
         service: selectedService?.name || "Bilinmeyen Hizmet",
-        price: selectedService?.price || 0,
+        price: Number(selectedService?.price) || 0,
         status: "Bekliyor",
         createdAt: serverTimestamp(),
       });
@@ -122,6 +131,20 @@ export default function AppointmentsPage() {
         path: 'appointments',
         operation: 'create',
         requestResourceData: values,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
+  const updateStatus = async (id: string, newStatus: string) => {
+    if (!db) return;
+    try {
+      const docRef = doc(db, "appointments", id);
+      await updateDoc(docRef, { status: newStatus });
+    } catch (error) {
+      const permissionError = new FirestorePermissionError({
+        path: `appointments/${id}`,
+        operation: 'update',
       });
       errorEmitter.emit('permission-error', permissionError);
     }
@@ -146,17 +169,24 @@ export default function AppointmentsPage() {
     return `${h < 10 ? '0' + h : h}:00`;
   });
 
-  // Günlük görünüm için randevuları filtrele
   const dailyAppointments = useMemo(() => {
     return appointments.filter((app: any) => app.date === selectedDate);
   }, [appointments, selectedDate]);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Tamamlandı": return <Badge className="bg-emerald-500 hover:bg-emerald-600">Tamamlandı</Badge>;
+      case "İptal": return <Badge variant="destructive">İptal Edildi</Badge>;
+      default: return <Badge variant="secondary">Bekliyor</Badge>;
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline text-primary">Randevu Takvimi</h1>
-          <p className="text-muted-foreground mt-1">Müşterilerinize yeni randevular oluşturun.</p>
+          <p className="text-muted-foreground mt-1">Müşteri randevularını yönetin ve durumlarını güncelleyin.</p>
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -328,20 +358,37 @@ export default function AppointmentsPage() {
                             appointmentsInThisHour.map((app: any) => (
                               <div 
                                 key={app.id} 
-                                className="bg-primary/10 border-l-4 border-l-primary p-2 rounded shadow-sm min-w-[200px] flex justify-between items-center animate-in fade-in zoom-in-95 duration-300"
+                                className={`p-2 rounded shadow-sm min-w-[220px] flex justify-between items-center animate-in fade-in zoom-in-95 duration-300 border-l-4 ${
+                                  app.status === 'Tamamlandı' ? 'bg-emerald-50 border-l-emerald-500' : 
+                                  app.status === 'İptal' ? 'bg-red-50 border-l-red-500' : 
+                                  'bg-primary/10 border-l-primary'
+                                }`}
                               >
                                 <div>
                                   <p className="text-xs font-bold text-primary">{app.time} - {app.customerName}</p>
                                   <p className="text-[10px] text-muted-foreground">{app.service} | {app.beautician}</p>
+                                  <div className="mt-1">
+                                    {getStatusBadge(app.status)}
+                                  </div>
                                 </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-6 w-6 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleDelete(app.id)}
-                                >
-                                  <Trash2 size={12} />
-                                </Button>
+                                <div className="flex flex-col gap-1">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical size={14}/></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => updateStatus(app.id, "Tamamlandı")} className="gap-2">
+                                        <CheckCircle2 size={14} className="text-emerald-500" /> İşlem Tamamlandı
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => updateStatus(app.id, "İptal")} className="gap-2 text-destructive">
+                                        <XCircle size={14} /> İptal Et
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDelete(app.id)} className="gap-2 text-destructive">
+                                        <Trash2 size={14} /> Sil
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
                               </div>
                             ))
                           ) : (
@@ -391,8 +438,26 @@ export default function AppointmentsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className="h-8 px-4">{app.status}</Badge>
+                        <div className="flex items-center gap-3">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="gap-2">
+                                {getStatusBadge(app.status)}
+                                <MoreVertical size={14} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => updateStatus(app.id, "Tamamlandı")} className="gap-2 text-emerald-600">
+                                <CheckCircle2 size={16} /> İşlem Tamamlandı
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => updateStatus(app.id, "İptal")} className="gap-2 text-destructive">
+                                <XCircle size={16} /> İptal Et
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => updateStatus(app.id, "Bekliyor")} className="gap-2">
+                                <Clock size={16} /> Bekliyor Yap
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                           <Button 
                             variant="ghost" 
                             size="icon" 

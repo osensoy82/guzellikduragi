@@ -52,25 +52,39 @@ export default function ReportsPage() {
   const { data: appointments = [] } = useCollection(appointmentsQuery);
   const { data: customers = [] } = useCollection(customersQuery);
 
-  // Veri özeti hesaplamaları
-  const totalRevenue = appointments
-    .filter((a: any) => a.status === "Tamamlandı")
-    .reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
+  // Veri özeti hesaplamaları (Sadece Tamamlandı olanlar gelir sayılır)
+  const totalRevenue = useMemo(() => {
+    return appointments
+      .filter((a: any) => a.status === "Tamamlandı")
+      .reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
+  }, [appointments]);
+
+  const completedCount = appointments.filter((a: any) => a.status === "Tamamlandı").length;
+  const cancelledCount = appointments.filter((a: any) => a.status === "İptal").length;
 
   const stats = [
-    { label: "Brüt Gelir", value: `₺${totalRevenue.toLocaleString('tr-TR')}`, trend: "Canlı", positive: true },
-    { label: "Yeni Müşteriler", value: customers.length.toString(), trend: "Canlı", positive: true },
-    { label: "Tamamlanan İşlem", value: appointments.filter((a: any) => a.status === "Tamamlandı").length.toString(), trend: "Canlı", positive: true },
+    { label: "Net Gelir", value: `₺${totalRevenue.toLocaleString('tr-TR')}`, trend: "Canlı", positive: true },
+    { label: "Toplam Müşteri", value: customers.length.toString(), trend: "Canlı", positive: true },
+    { label: "Başarılı İşlem", value: completedCount.toString(), trend: "Canlı", positive: true },
     { label: "İptal Oranı", value: appointments.length > 0 
-        ? `%${((appointments.filter((a: any) => a.status === "İptal").length / appointments.length) * 100).toFixed(1)}` 
+        ? `%${((cancelledCount / appointments.length) * 100).toFixed(1)}` 
         : "%0", trend: "Stabil", positive: true },
   ];
 
-  // Hizmet dağılımı verisi (boşsa boş dizi)
+  // Hizmet dağılımı verisi
   const serviceDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
-    appointments.forEach((a: any) => {
+    appointments.filter((a: any) => a.status === "Tamamlandı").forEach((a: any) => {
       counts[a.service] = (counts[a.service] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [appointments]);
+
+  // Randevu Durum Dağılımı
+  const statusData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    appointments.forEach((a: any) => {
+      counts[a.status || 'Bekliyor'] = (counts[a.status || 'Bekliyor'] || 0) + 1;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [appointments]);
@@ -80,7 +94,7 @@ export default function ReportsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Analitik Raporlar</h1>
-          <p className="text-muted-foreground mt-1">İşletme büyümesini ve verimliliği izleyin.</p>
+          <p className="text-muted-foreground mt-1">Sadece tamamlanan işlemlerden elde edilen net gelir analizi.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2">
@@ -117,12 +131,12 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle className="font-headline flex items-center gap-2">
               <BarChart3 size={20} className="text-primary" />
-              Gelir Dağılımı
+              Popüler Hizmetler (Başarılı)
             </CardTitle>
-            <CardDescription>Randevu durumlarına göre finansal görünüm.</CardDescription>
+            <CardDescription>Tamamlanan randevuların hizmet bazlı dağılımı.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            {appointments.length > 0 ? (
+            {serviceDistribution.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={serviceDistribution}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -138,7 +152,7 @@ export default function ReportsPage() {
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground italic border-2 border-dashed rounded-xl">
                 <BarChart3 size={40} className="mb-2 opacity-20" />
-                Henüz grafik verisi bulunmuyor.
+                Henüz tamamlanmış hizmet verisi bulunmuyor.
               </div>
             )}
           </CardContent>
@@ -148,17 +162,17 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle className="font-headline flex items-center gap-2">
               <PieChartIcon size={20} className="text-primary" />
-              Hizmet Popülerliği
+              Randevu Durum Dağılımı
             </CardTitle>
-            <CardDescription>En çok tercih edilen işlemler.</CardDescription>
+            <CardDescription>Tüm randevuların genel durum özeti.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            {serviceDistribution.length > 0 ? (
+            {statusData.length > 0 ? (
               <div className="h-full flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={serviceDistribution}
+                      data={statusData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -166,7 +180,7 @@ export default function ReportsPage() {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {serviceDistribution.map((entry, index) => (
+                      {statusData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -174,7 +188,7 @@ export default function ReportsPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="hidden sm:block space-y-2 ml-4">
-                  {serviceDistribution.map((entry, index) => (
+                  {statusData.map((entry, index) => (
                     <div key={entry.name} className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                       <span className="text-xs font-medium text-muted-foreground">{entry.name}</span>
@@ -185,7 +199,7 @@ export default function ReportsPage() {
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground italic border-2 border-dashed rounded-xl">
                 <PieChartIcon size={40} className="mb-2 opacity-20" />
-                Henüz dağılım verisi bulunmuyor.
+                Veri bulunmuyor.
               </div>
             )}
           </CardContent>
