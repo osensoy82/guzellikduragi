@@ -17,7 +17,7 @@ import {
   Clock, 
   Tag, 
   Plus, 
-  ChevronRight
+  Trash2
 } from "lucide-react";
 import { 
   Dialog, 
@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -56,7 +56,7 @@ export default function ServicesPage() {
 
   const servicesQuery = useMemo(() => {
     if (!db) return null;
-    return collection(db, "services");
+    return query(collection(db, "services"), orderBy("createdAt", "desc"));
   }, [db]);
 
   const { data: serviceList = [] } = useCollection(servicesQuery);
@@ -84,6 +84,18 @@ export default function ServicesPage() {
     
     setIsOpen(false);
     form.reset();
+  };
+
+  const handleDelete = (id: string) => {
+    if (!db || !confirm("Bu hizmeti silmek istediğinize emin misiniz?")) return;
+    const docRef = doc(db, "services", id);
+    deleteDoc(docRef).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: `services/${id}`,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   return (
@@ -160,6 +172,14 @@ export default function ServicesPage() {
                   <div className="bg-primary/5 p-2 rounded-lg">
                     <Sparkles className="text-primary" size={24} />
                   </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDelete(service.id)}
+                  >
+                    <Trash2 size={18} />
+                  </Button>
                 </div>
                 <CardTitle className="mt-4 font-headline">{service.name}</CardTitle>
                 <CardDescription>Profesyonel uygulama kataloğu.</CardDescription>
@@ -174,12 +194,6 @@ export default function ServicesPage() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-muted/30 p-4">
-                <Button variant="ghost" className="w-full justify-between hover:bg-white group">
-                  Düzenle
-                  <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </CardFooter>
             </Card>
           ))
         ) : (

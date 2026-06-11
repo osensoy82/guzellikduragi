@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { 
   Clock, 
   User, 
-  Plus
+  Plus,
+  Trash2,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -45,7 +47,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, query, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -114,6 +116,18 @@ export default function AppointmentsPage() {
     
     setIsOpen(false);
     form.reset();
+  };
+
+  const handleDelete = (id: string) => {
+    if (!db || !confirm("Bu randevuyu silmek istediğinize emin misiniz?")) return;
+    const docRef = doc(db, "appointments", id);
+    deleteDoc(docRef).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: `appointments/${id}`,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   const hours = Array.from({ length: 11 }, (_, i) => `${i + 9}:00`);
@@ -309,8 +323,16 @@ export default function AppointmentsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
                           <Badge className="h-8 px-4">{app.status}</Badge>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(app.id)}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
                         </div>
                       </div>
                     ))

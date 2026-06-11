@@ -23,7 +23,7 @@ import {
   Package, 
   AlertTriangle,
   Plus,
-  MoreVertical
+  Trash2
 } from "lucide-react";
 import { 
   Dialog, 
@@ -44,7 +44,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -65,7 +65,7 @@ export default function InventoryPage() {
 
   const inventoryQuery = useMemo(() => {
     if (!db) return null;
-    return collection(db, "inventory");
+    return query(collection(db, "inventory"), orderBy("createdAt", "desc"));
   }, [db]);
 
   const { data: inventoryItems = [] } = useCollection(inventoryQuery);
@@ -95,6 +95,18 @@ export default function InventoryPage() {
     
     setIsOpen(false);
     form.reset();
+  };
+
+  const handleDelete = (id: string) => {
+    if (!db || !confirm("Bu ürünü silmek istediğinize emin misiniz?")) return;
+    const docRef = doc(db, "inventory", id);
+    deleteDoc(docRef).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: `inventory/${id}`,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   return (
@@ -261,8 +273,13 @@ export default function InventoryPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical size={18} />
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <Trash2 size={18} />
                           </Button>
                         </TableCell>
                       </TableRow>

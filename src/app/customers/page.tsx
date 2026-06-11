@@ -23,8 +23,8 @@ import {
   UserPlus, 
   Phone, 
   Mail,
-  History,
-  FileText
+  Trash2,
+  User
 } from "lucide-react";
 import { 
   DropdownMenu, 
@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -70,7 +70,7 @@ export default function CustomersPage() {
 
   const customersQuery = useMemo(() => {
     if (!db) return null;
-    return collection(db, "customers");
+    return query(collection(db, "customers"), orderBy("createdAt", "desc"));
   }, [db]);
 
   const { data: customers = [], loading } = useCollection(customersQuery);
@@ -101,6 +101,19 @@ export default function CustomersPage() {
     
     setIsOpen(false);
     form.reset();
+  };
+
+  const handleDelete = (id: string) => {
+    if (!db || !confirm("Bu müşteriyi silmek istediğinize emin misiniz?")) return;
+    
+    const docRef = doc(db, "customers", id);
+    deleteDoc(docRef).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: `customers/${id}`,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   const filteredCustomers = customers.filter((c: any) => 
@@ -196,7 +209,7 @@ export default function CustomersPage() {
                 <TableRow>
                   <TableHead className="w-[250px]">Müşteri</TableHead>
                   <TableHead>İletişim</TableHead>
-                  <TableHead>Toplam Harcama</TableHead>
+                  <TableHead>Kayıt Tarihi</TableHead>
                   <TableHead className="text-right">İşlemler</TableHead>
                 </TableRow>
               </TableHeader>
@@ -222,7 +235,9 @@ export default function CustomersPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="font-semibold text-primary">₺{customer.totalSpend || 0}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {customer.createdAt?.toDate ? customer.createdAt.toDate().toLocaleDateString('tr-TR') : '-'}
+                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -232,10 +247,13 @@ export default function CustomersPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem className="gap-2">
-                              <FileText size={16} /> Profili Görüntüle
+                              <User size={16} /> Profili Görüntüle
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-primary">
-                              <History size={16} /> İşlem Geçmişi
+                            <DropdownMenuItem 
+                              className="gap-2 text-destructive focus:text-destructive"
+                              onClick={() => handleDelete(customer.id)}
+                            >
+                              <Trash2 size={16} /> Müşteriyi Sil
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
