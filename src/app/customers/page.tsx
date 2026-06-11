@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -23,7 +24,8 @@ import {
   Phone, 
   Mail,
   Trash2,
-  User
+  User,
+  ExternalLink
 } from "lucide-react";
 import { 
   DropdownMenu, 
@@ -55,6 +57,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import Link from "next/link";
 
 const customerSchema = z.object({
   name: z.string().min(2, "İsim en az 2 karakter olmalıdır"),
@@ -84,11 +87,13 @@ export default function CustomersPage() {
     
     try {
       const customersRef = collection(db, "customers");
-      await addDoc(customersRef, {
+      addDoc(customersRef, {
         ...values,
         totalSpend: 0,
         debt: 0,
         lastVisit: null,
+        notes: "",
+        consentFormUrl: "",
         createdAt: serverTimestamp(),
       });
       setIsOpen(false);
@@ -108,7 +113,7 @@ export default function CustomersPage() {
     
     try {
       const docRef = doc(db, "customers", id);
-      await deleteDoc(docRef);
+      deleteDoc(docRef);
     } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: `customers/${id}`,
@@ -128,7 +133,7 @@ export default function CustomersPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline text-primary">Müşteri Yönetimi</h1>
-          <p className="text-muted-foreground mt-1">Müşteri kayıtlarını buradan yönetebilirsiniz.</p>
+          <p className="text-muted-foreground mt-1">Müşteri kayıtlarını ve detaylı profilleri buradan yönetebilirsiniz.</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
@@ -224,7 +229,9 @@ export default function CustomersPage() {
                           <div className="bg-primary/10 h-9 w-9 rounded-full flex items-center justify-center font-bold text-primary">
                             {customer.name?.charAt(0)}
                           </div>
-                          <span className="font-medium">{customer.name}</span>
+                          <Link href={`/customers/${customer.id}`} className="font-medium hover:text-primary hover:underline transition-all">
+                            {customer.name}
+                          </Link>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -241,24 +248,33 @@ export default function CustomersPage() {
                         {customer.createdAt?.toDate ? customer.createdAt.toDate().toLocaleDateString('tr-TR') : '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical size={18} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="gap-2">
-                              <User size={16} /> Profili Görüntüle
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 text-destructive focus:text-destructive"
-                              onClick={() => handleDelete(customer.id)}
-                            >
-                              <Trash2 size={16} /> Müşteriyi Sil
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center justify-end gap-2">
+                           <Button variant="outline" size="sm" className="gap-2" asChild>
+                            <Link href={`/customers/${customer.id}`}>
+                              <ExternalLink size={14} /> Profil
+                            </Link>
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical size={18} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem className="gap-2" asChild>
+                                <Link href={`/customers/${customer.id}`}>
+                                  <User size={16} /> Profili Görüntüle
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="gap-2 text-destructive focus:text-destructive"
+                                onClick={() => handleDelete(customer.id)}
+                              >
+                                <Trash2 size={16} /> Müşteriyi Sil
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

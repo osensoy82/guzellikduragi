@@ -11,7 +11,9 @@
         "email": { "type": "string", "format": "email", "description": "E-posta adresi" },
         "totalSpend": { "type": "number", "description": "Toplam harcama tutarı" },
         "debt": { "type": "number", "description": "Mevcut borç miktarı" },
-        "lastVisit": { "type": "string", "format": "date-time", "description": "Son ziyaret tarihi" }
+        "lastVisit": { "type": "string", "format": "date-time", "description": "Son ziyaret tarihi" },
+        "consentFormUrl": { "type": "string", "description": "Onam formu döküman linki" },
+        "notes": { "type": "string", "description": "Müşteri özel notları" }
       },
       "required": ["name", "phone"]
     },
@@ -27,7 +29,8 @@
         "date": { "type": "string", "format": "date", "description": "Randevu tarihi" },
         "status": { "type": "string", "enum": ["Bekliyor", "Onaylandı", "Tamamlandı", "İptal"], "description": "Randevu durumu" },
         "beautician": { "type": "string", "description": "Hizmeti verecek uzman" },
-        "price": { "type": "number", "description": "Randevu ücreti" }
+        "price": { "type": "number", "description": "Randevu ücreti" },
+        "sessionNumber": { "type": "number", "description": "Paket içindeki seans numarası" }
       },
       "required": ["customerName", "service", "time", "date", "status"]
     },
