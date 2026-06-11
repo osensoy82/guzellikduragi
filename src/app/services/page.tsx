@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { 
   Card, 
   CardContent, 
@@ -20,10 +20,39 @@ import {
   MoreHorizontal,
   ChevronRight
 } from "lucide-react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogFooter as UiDialogFooter
+} from "@/components/ui/dialog";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
+const serviceSchema = z.object({
+  name: z.string().min(2, "Hizmet adı en az 2 karakter olmalıdır"),
+  price: z.coerce.number().min(1, "Geçerli bir fiyat giriniz"),
+  duration: z.string().min(1, "Süre giriniz (örn: 30)"),
+});
 
 export default function ServicesPage() {
+  const [isOpen, setIsOpen] = useState(false);
   const db = useFirestore();
 
   const servicesQuery = useMemo(() => {
@@ -33,17 +62,93 @@ export default function ServicesPage() {
 
   const { data: serviceList = [] } = useCollection(servicesQuery);
 
+  const form = useForm<z.infer<typeof serviceSchema>>({
+    resolver: zodResolver(serviceSchema),
+    defaultValues: { name: "", price: 0, duration: "" },
+  });
+
+  const onSubmit = (values: z.infer<typeof serviceSchema>) => {
+    if (!db) return;
+    
+    const servicesRef = collection(db, "services");
+    addDoc(servicesRef, {
+      ...values,
+      createdAt: serverTimestamp(),
+    }).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: 'services',
+        operation: 'create',
+        requestResourceData: values,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+    
+    setIsOpen(false);
+    form.reset();
+  };
+
   return (
     <div className="space-y-6 animate-in slide-in-from-top-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Hizmet Kataloğu</h1>
-          <p className="text-muted-foreground mt-1">Veriler sıfırlandı, hizmetleri yeniden tanımlayabilirsiniz.</p>
+          <p className="text-muted-foreground mt-1">Hizmetlerinizi buradan yönetebilirsiniz.</p>
         </div>
-        <Button className="gap-2">
-          <Plus size={18} />
-          Yeni Hizmet Ekle
-        </Button>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus size={18} />
+              Yeni Hizmet Ekle
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Yeni Hizmet Tanımla</DialogTitle>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hizmet Adı</FormLabel>
+                      <FormControl><Input placeholder="Cilt Bakımı" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fiyat (₺)</FormLabel>
+                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="duration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Süre (Dakika)</FormLabel>
+                        <FormControl><Input placeholder="60" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <UiDialogFooter>
+                  <Button type="submit">Kaydet</Button>
+                </UiDialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -56,9 +161,6 @@ export default function ServicesPage() {
                   <div className="bg-primary/5 p-2 rounded-lg">
                     <Sparkles className="text-primary" size={24} />
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal size={18} />
-                  </Button>
                 </div>
                 <CardTitle className="mt-4 font-headline">{service.name}</CardTitle>
                 <CardDescription>Profesyonel uygulama kataloğu.</CardDescription>

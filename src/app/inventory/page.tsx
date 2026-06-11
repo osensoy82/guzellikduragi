@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { 
   Card, 
   CardContent, 
@@ -27,11 +27,42 @@ import {
   MoreVertical,
   Filter
 } from "lucide-react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
+const inventorySchema = z.object({
+  name: z.string().min(2, "Ürün adı en az 2 karakter olmalıdır"),
+  category: z.string().min(1, "Kategori seçiniz"),
+  stock: z.coerce.number().min(0, "Geçerli stok giriniz"),
+  price: z.coerce.number().min(0, "Geçerli fiyat giriniz"),
+  minLevel: z.coerce.number().min(1, "Minimum seviye giriniz"),
+});
 
 export default function InventoryPage() {
+  const [isOpen, setIsOpen] = useState(false);
   const db = useFirestore();
 
   const inventoryQuery = useMemo(() => {
@@ -43,22 +74,116 @@ export default function InventoryPage() {
 
   const criticalItems = inventoryItems.filter((item: any) => (item.stock || 0) <= (item.minLevel || 0));
 
+  const form = useForm<z.infer<typeof inventorySchema>>({
+    resolver: zodResolver(inventorySchema),
+    defaultValues: { name: "", category: "", stock: 0, price: 0, minLevel: 5 },
+  });
+
+  const onSubmit = (values: z.infer<typeof inventorySchema>) => {
+    if (!db) return;
+    
+    const inventoryRef = collection(db, "inventory");
+    addDoc(inventoryRef, {
+      ...values,
+      createdAt: serverTimestamp(),
+    }).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: 'inventory',
+        operation: 'create',
+        requestResourceData: values,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+    
+    setIsOpen(false);
+    form.reset();
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Stok ve Envanter</h1>
-          <p className="text-muted-foreground mt-1">Stok verileri sıfırlandı, yeni ürün tanımlayabilirsiniz.</p>
+          <p className="text-muted-foreground mt-1">Ürün stoklarını buradan takip edin.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <ArrowUpCircle size={18} />
-            Stok Girişi
-          </Button>
-          <Button className="gap-2">
-            <Plus size={18} />
-            Yeni Ürün
-          </Button>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus size={18} />
+                Yeni Ürün
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Yeni Ürün Ekle</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ürün Adı</FormLabel>
+                        <FormControl><Input placeholder="Nemlendirici Krem" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Kategori</FormLabel>
+                        <FormControl><Input placeholder="Cilt Bakımı" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="stock"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mevcut Stok</FormLabel>
+                          <FormControl><Input type="number" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="minLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Kritik Seviye</FormLabel>
+                          <FormControl><Input type="number" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Birim Fiyat</FormLabel>
+                          <FormControl><Input type="number" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit">Kaydet</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -83,16 +208,6 @@ export default function InventoryPage() {
             <div className="text-2xl font-bold">{criticalItems.length} Ürün</div>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-sm bg-emerald-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-emerald-600 flex items-center gap-2">
-              <TrendingUp size={16} /> Aylık Hareket
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₺0</div>
-          </CardContent>
-        </Card>
       </div>
 
       <Card className="border-none shadow-sm">
@@ -100,11 +215,8 @@ export default function InventoryPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="font-headline">Ürün Listesi</CardTitle>
-              <CardDescription>Mevcut ürün kataloğu (Sıfırlandı).</CardDescription>
+              <CardDescription>Mevcut ürün kataloğu.</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1">
-              <Filter size={16} /> Filtrele
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -123,7 +235,8 @@ export default function InventoryPage() {
               <TableBody>
                 {inventoryItems.length > 0 ? (
                   inventoryItems.map((item: any) => {
-                    const stockPercentage = Math.min((item.stock / (item.minLevel * 2 || 20)) * 100, 100);
+                    const maxPossible = (item.minLevel * 2 || 20);
+                    const stockPercentage = Math.min((item.stock / maxPossible) * 100, 100);
                     const isCritical = item.stock <= item.minLevel;
                     
                     return (
@@ -170,25 +283,5 @@ export default function InventoryPage() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function TrendingUp(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-      <polyline points="16 7 22 7 22 13" />
-    </svg>
   );
 }

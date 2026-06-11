@@ -30,16 +30,42 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
+const customerSchema = z.object({
+  name: z.string().min(2, "İsim en az 2 karakter olmalıdır"),
+  phone: z.string().min(10, "Geçerli bir telefon giriniz"),
+  email: z.string().email("Geçerli bir e-posta giriniz").optional().or(z.literal("")),
+});
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
   const db = useFirestore();
 
   const customersQuery = useMemo(() => {
@@ -48,6 +74,34 @@ export default function CustomersPage() {
   }, [db]);
 
   const { data: customers = [], loading } = useCollection(customersQuery);
+
+  const form = useForm<z.infer<typeof customerSchema>>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: { name: "", phone: "", email: "" },
+  });
+
+  const onSubmit = (values: z.infer<typeof customerSchema>) => {
+    if (!db) return;
+    
+    const customersRef = collection(db, "customers");
+    addDoc(customersRef, {
+      ...values,
+      totalSpend: 0,
+      debt: 0,
+      lastVisit: null,
+      createdAt: serverTimestamp(),
+    }).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: 'customers',
+        operation: 'create',
+        requestResourceData: values,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+    
+    setIsOpen(false);
+    form.reset();
+  };
 
   const filteredCustomers = customers.filter((c: any) => 
     c.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -59,12 +113,61 @@ export default function CustomersPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Müşteri Yönetimi</h1>
-          <p className="text-muted-foreground mt-1">Müşteri verileri temizlendi, yeni müşteri ekleyebilirsiniz.</p>
+          <p className="text-muted-foreground mt-1">Müşteri kayıtlarını buradan yönetebilirsiniz.</p>
         </div>
-        <Button className="gap-2 bg-primary hover:bg-primary/90">
-          <UserPlus size={18} />
-          Yeni Müşteri
-        </Button>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 bg-primary hover:bg-primary/90">
+              <UserPlus size={18} />
+              Yeni Müşteri
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Müşteri Ekle</DialogTitle>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ad Soyad</FormLabel>
+                      <FormControl><Input placeholder="Ahmet Yılmaz" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefon</FormLabel>
+                      <FormControl><Input placeholder="0555..." {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>E-posta (Opsiyonel)</FormLabel>
+                      <FormControl><Input placeholder="ahmet@example.com" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit">Kaydet</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card className="border-none shadow-sm">
@@ -93,9 +196,7 @@ export default function CustomersPage() {
                 <TableRow>
                   <TableHead className="w-[250px]">Müşteri</TableHead>
                   <TableHead>İletişim</TableHead>
-                  <TableHead>Son Ziyaret</TableHead>
-                  <TableHead>Harcama</TableHead>
-                  <TableHead>Durum</TableHead>
+                  <TableHead>Toplam Harcama</TableHead>
                   <TableHead className="text-right">İşlemler</TableHead>
                 </TableRow>
               </TableHeader>
@@ -121,11 +222,7 @@ export default function CustomersPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{customer.lastVisit || "Ziyaret yok"}</TableCell>
                       <TableCell className="font-semibold text-primary">₺{customer.totalSpend || 0}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-emerald-600 bg-emerald-50">Aktif</Badge>
-                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
