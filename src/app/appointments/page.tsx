@@ -74,10 +74,10 @@ export default function AppointmentsPage() {
               <CardTitle className="text-sm font-headline uppercase tracking-wider text-muted-foreground">Uzmanlar</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {['Zeynep K.', 'Elif S.', 'Eda M.'].map((staff) => (
+              {['Serdar', 'Elif', 'Fethiye'].map((staff) => (
                 <div key={staff} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors border border-transparent hover:border-border">
                   <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-primary/60">
-                    {staff.split(' ')[0][0]}
+                    {staff.charAt(0)}
                   </div>
                   <span className="text-sm font-medium">{staff}</span>
                 </div>
