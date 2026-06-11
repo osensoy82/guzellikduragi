@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { 
   Card, 
   CardContent, 
@@ -13,8 +13,7 @@ import {
   Clock, 
   User, 
   Plus,
-  Trash2,
-  Calendar as CalendarIcon
+  Trash2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -46,7 +45,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -67,17 +66,17 @@ export default function AppointmentsPage() {
   const [isOpen, setIsOpen] = useState(false);
   const db = useFirestore();
   
-  const appointmentsQuery = useMemo(() => {
+  const appointmentsQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "appointments"), orderBy("date", "desc"));
   }, [db]);
 
-  const customersQuery = useMemo(() => {
+  const customersQuery = useMemoFirebase(() => {
     if (!db) return null;
     return collection(db, "customers");
   }, [db]);
 
-  const servicesQuery = useMemo(() => {
+  const servicesQuery = useMemoFirebase(() => {
     if (!db) return null;
     return collection(db, "services");
   }, [db]);

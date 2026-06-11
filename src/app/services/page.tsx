@@ -1,17 +1,15 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { 
   Card, 
   CardContent, 
   CardHeader, 
   CardTitle, 
-  CardDescription,
-  CardFooter
+  CardDescription
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   Sparkles, 
   Clock, 
@@ -36,7 +34,7 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,7 +52,7 @@ export default function ServicesPage() {
   const [isOpen, setIsOpen] = useState(false);
   const db = useFirestore();
 
-  const servicesQuery = useMemo(() => {
+  const servicesQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "services"), orderBy("createdAt", "desc"));
   }, [db]);
