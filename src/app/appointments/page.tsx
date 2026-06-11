@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   Card, 
   CardContent, 
@@ -12,7 +13,8 @@ import {
   Clock, 
   User, 
   Plus,
-  Trash2
+  Trash2,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -52,6 +54,7 @@ import * as z from "zod";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Input } from "@/components/ui/input";
+import { format } from "date-fns";
 
 const appointmentSchema = z.object({
   customerId: z.string().min(1, "Müşteri seçiniz"),
@@ -63,6 +66,7 @@ const appointmentSchema = z.object({
 
 export default function AppointmentsPage() {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const db = useFirestore();
   
   const appointmentsQuery = useMemoFirebase(() => {
@@ -86,7 +90,7 @@ export default function AppointmentsPage() {
   
   const form = useForm<z.infer<typeof appointmentSchema>>({
     resolver: zodResolver(appointmentSchema),
-    defaultValues: { customerId: "", serviceId: "", beautician: "", date: "", time: "" },
+    defaultValues: { customerId: "", serviceId: "", beautician: "", date: selectedDate, time: "" },
   });
 
   const onSubmit = async (values: z.infer<typeof appointmentSchema>) => {
@@ -106,7 +110,7 @@ export default function AppointmentsPage() {
         createdAt: serverTimestamp(),
       });
       setIsOpen(false);
-      form.reset();
+      form.reset({ ...form.getValues(), time: "", customerId: "", serviceId: "" });
     } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: 'appointments',
@@ -131,8 +135,17 @@ export default function AppointmentsPage() {
     }
   };
 
-  const hours = Array.from({ length: 11 }, (_, i) => `${i + 9}:00`);
+  const hours = Array.from({ length: 13 }, (_, i) => {
+    const h = i + 9;
+    return `${h < 10 ? '0' + h : h}:00`;
+  });
+
   const beauticians = ['Zeynep K.', 'Elif S.', 'Eda M.'];
+
+  // Günlük görünüm için randevuları filtrele
+  const dailyAppointments = useMemo(() => {
+    return appointments.filter((app: any) => app.date === selectedDate);
+  }, [appointments, selectedDate]);
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
@@ -253,53 +266,98 @@ export default function AppointmentsPage() {
         <div className="lg:col-span-3 space-y-6">
           <Card className="border-none shadow-sm">
             <CardHeader>
-              <CardTitle className="text-sm font-headline uppercase tracking-wider text-muted-foreground">Uzmanlar</CardTitle>
+              <CardTitle className="text-sm font-headline uppercase tracking-wider text-muted-foreground">Tarih Seçimi</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {beauticians.map((staff) => (
-                <div key={staff} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors border border-transparent hover:border-border">
-                  <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-primary/60">
-                    {staff.charAt(0)}
+            <CardContent>
+              <Input 
+                type="date" 
+                value={selectedDate} 
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="mb-4"
+              />
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-xs font-headline uppercase tracking-wider text-muted-foreground mb-4">Uzmanlar</h3>
+                {beauticians.map((staff) => (
+                  <div key={staff} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors border border-transparent hover:border-border">
+                    <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-primary/60">
+                      {staff.charAt(0)}
+                    </div>
+                    <span className="text-sm font-medium">{staff}</span>
                   </div>
-                  <span className="text-sm font-medium">{staff}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
 
         <div className="lg:col-span-9">
-          <Tabs defaultValue="list" className="w-full">
+          <Tabs defaultValue="daily" className="w-full">
             <div className="flex items-center justify-between mb-4">
               <TabsList className="bg-card border shadow-sm h-11">
                 <TabsTrigger value="daily" className="px-6">Günlük</TabsTrigger>
                 <TabsTrigger value="list" className="px-6">Liste Görünümü</TabsTrigger>
               </TabsList>
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <CalendarIcon size={16} />
+                {selectedDate}
+              </div>
             </div>
 
             <TabsContent value="daily">
               <Card className="border-none shadow-sm overflow-hidden">
                 <div className="grid grid-cols-1 divide-y">
-                  {hours.map((hour) => (
-                    <div key={hour} className="flex min-h-[80px] group">
-                      <div className="w-20 py-4 text-center border-r bg-muted/20">
-                        <span className="text-xs font-semibold text-muted-foreground">{hour}</span>
+                  {hours.map((hour) => {
+                    const hourPrefix = hour.split(':')[0];
+                    const appointmentsInThisHour = dailyAppointments.filter((app: any) => 
+                      app.time.startsWith(hourPrefix)
+                    );
+
+                    return (
+                      <div key={hour} className="flex min-h-[100px] group">
+                        <div className="w-20 py-4 text-center border-r bg-muted/10">
+                          <span className="text-xs font-bold text-muted-foreground">{hour}</span>
+                        </div>
+                        <div className="flex-1 p-2 relative flex flex-wrap gap-2 content-start bg-background/50">
+                          {appointmentsInThisHour.length > 0 ? (
+                            appointmentsInThisHour.map((app: any) => (
+                              <div 
+                                key={app.id} 
+                                className="bg-primary/10 border-l-4 border-l-primary p-2 rounded shadow-sm min-w-[200px] flex justify-between items-center animate-in fade-in zoom-in-95 duration-300"
+                              >
+                                <div>
+                                  <p className="text-xs font-bold text-primary">{app.time} - {app.customerName}</p>
+                                  <p className="text-[10px] text-muted-foreground">{app.service} | {app.beautician}</p>
+                                </div>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleDelete(app.id)}
+                                >
+                                  <Trash2 size={12} />
+                                </Button>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="gap-1 text-xs text-muted-foreground"
+                                onClick={() => {
+                                  form.setValue('time', hour);
+                                  form.setValue('date', selectedDate);
+                                  setIsOpen(true);
+                                }}
+                              >
+                                <Plus size={14} /> Randevu Ekle
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1 p-4 relative flex items-center justify-center">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="gap-1 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => {
-                            form.setValue('time', hour);
-                            setIsOpen(true);
-                          }}
-                        >
-                          <Plus size={14} /> Yeni Randevu
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </Card>
             </TabsContent>
@@ -318,7 +376,10 @@ export default function AppointmentsPage() {
                             <h4 className="font-bold">{app.customerName}</h4>
                             <div className="flex items-center gap-3 mt-0.5">
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Clock size={12} /> {app.date} {app.time}
+                                <CalendarIcon size={12} /> {app.date}
+                              </span>
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Clock size={12} /> {app.time}
                               </span>
                               <span className="text-xs text-muted-foreground">• {app.service} ({app.beautician})</span>
                             </div>
