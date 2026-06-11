@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -64,36 +63,39 @@ export default function ServicesPage() {
     defaultValues: { name: "", price: 0, duration: "" },
   });
 
-  const onSubmit = (values: z.infer<typeof serviceSchema>) => {
+  const onSubmit = async (values: z.infer<typeof serviceSchema>) => {
     if (!db) return;
     
-    const servicesRef = collection(db, "services");
-    addDoc(servicesRef, {
-      ...values,
-      createdAt: serverTimestamp(),
-    }).catch(async (error) => {
+    try {
+      const servicesRef = collection(db, "services");
+      await addDoc(servicesRef, {
+        ...values,
+        createdAt: serverTimestamp(),
+      });
+      setIsOpen(false);
+      form.reset();
+    } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: 'services',
         operation: 'create',
         requestResourceData: values,
       });
       errorEmitter.emit('permission-error', permissionError);
-    });
-    
-    setIsOpen(false);
-    form.reset();
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!db || !confirm("Bu hizmeti silmek istediğinize emin misiniz?")) return;
-    const docRef = doc(db, "services", id);
-    deleteDoc(docRef).catch(async (error) => {
+    try {
+      const docRef = doc(db, "services", id);
+      await deleteDoc(docRef);
+    } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: `services/${id}`,
         operation: 'delete',
       });
       errorEmitter.emit('permission-error', permissionError);
-    });
+    }
   };
 
   return (

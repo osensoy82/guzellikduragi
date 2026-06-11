@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -80,40 +79,43 @@ export default function CustomersPage() {
     defaultValues: { name: "", phone: "", email: "" },
   });
 
-  const onSubmit = (values: z.infer<typeof customerSchema>) => {
+  const onSubmit = async (values: z.infer<typeof customerSchema>) => {
     if (!db) return;
     
-    const customersRef = collection(db, "customers");
-    addDoc(customersRef, {
-      ...values,
-      totalSpend: 0,
-      debt: 0,
-      lastVisit: null,
-      createdAt: serverTimestamp(),
-    }).catch(async (error) => {
+    try {
+      const customersRef = collection(db, "customers");
+      await addDoc(customersRef, {
+        ...values,
+        totalSpend: 0,
+        debt: 0,
+        lastVisit: null,
+        createdAt: serverTimestamp(),
+      });
+      setIsOpen(false);
+      form.reset();
+    } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: 'customers',
         operation: 'create',
         requestResourceData: values,
       });
       errorEmitter.emit('permission-error', permissionError);
-    });
-    
-    setIsOpen(false);
-    form.reset();
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!db || !confirm("Bu müşteriyi silmek istediğinize emin misiniz?")) return;
     
-    const docRef = doc(db, "customers", id);
-    deleteDoc(docRef).catch(async (error) => {
+    try {
+      const docRef = doc(db, "customers", id);
+      await deleteDoc(docRef);
+    } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: `customers/${id}`,
         operation: 'delete',
       });
       errorEmitter.emit('permission-error', permissionError);
-    });
+    }
   };
 
   const filteredCustomers = customers.filter((c: any) => 

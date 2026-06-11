@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -77,36 +76,39 @@ export default function InventoryPage() {
     defaultValues: { name: "", category: "", stock: 0, price: 0, minLevel: 5 },
   });
 
-  const onSubmit = (values: z.infer<typeof inventorySchema>) => {
+  const onSubmit = async (values: z.infer<typeof inventorySchema>) => {
     if (!db) return;
     
-    const inventoryRef = collection(db, "inventory");
-    addDoc(inventoryRef, {
-      ...values,
-      createdAt: serverTimestamp(),
-    }).catch(async (error) => {
+    try {
+      const inventoryRef = collection(db, "inventory");
+      await addDoc(inventoryRef, {
+        ...values,
+        createdAt: serverTimestamp(),
+      });
+      setIsOpen(false);
+      form.reset();
+    } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: 'inventory',
         operation: 'create',
         requestResourceData: values,
       });
       errorEmitter.emit('permission-error', permissionError);
-    });
-    
-    setIsOpen(false);
-    form.reset();
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!db || !confirm("Bu ürünü silmek istediğinize emin misiniz?")) return;
-    const docRef = doc(db, "inventory", id);
-    deleteDoc(docRef).catch(async (error) => {
+    try {
+      const docRef = doc(db, "inventory", id);
+      await deleteDoc(docRef);
+    } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: `inventory/${id}`,
         operation: 'delete',
       });
       errorEmitter.emit('permission-error', permissionError);
-    });
+    }
   };
 
   return (

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -68,7 +67,7 @@ export default function AppointmentsPage() {
   
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "appointments"), orderBy("date", "desc"));
+    return query(collection(db, "appointments"), orderBy("createdAt", "desc"));
   }, [db]);
 
   const customersQuery = useMemoFirebase(() => {
@@ -90,47 +89,50 @@ export default function AppointmentsPage() {
     defaultValues: { customerId: "", serviceId: "", beautician: "", date: "", time: "" },
   });
 
-  const onSubmit = (values: z.infer<typeof appointmentSchema>) => {
+  const onSubmit = async (values: z.infer<typeof appointmentSchema>) => {
     if (!db) return;
     
     const selectedCustomer = customers.find((c: any) => c.id === values.customerId);
     const selectedService = services.find((s: any) => s.id === values.serviceId);
 
-    const appointmentsRef = collection(db, "appointments");
-    addDoc(appointmentsRef, {
-      ...values,
-      customerName: selectedCustomer?.name || "Bilinmeyen Müşteri",
-      service: selectedService?.name || "Bilinmeyen Hizmet",
-      price: selectedService?.price || 0,
-      status: "Bekliyor",
-      createdAt: serverTimestamp(),
-    }).catch(async (error) => {
+    try {
+      const appointmentsRef = collection(db, "appointments");
+      await addDoc(appointmentsRef, {
+        ...values,
+        customerName: selectedCustomer?.name || "Bilinmeyen Müşteri",
+        service: selectedService?.name || "Bilinmeyen Hizmet",
+        price: selectedService?.price || 0,
+        status: "Bekliyor",
+        createdAt: serverTimestamp(),
+      });
+      setIsOpen(false);
+      form.reset();
+    } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: 'appointments',
         operation: 'create',
         requestResourceData: values,
       });
       errorEmitter.emit('permission-error', permissionError);
-    });
-    
-    setIsOpen(false);
-    form.reset();
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!db || !confirm("Bu randevuyu silmek istediğinize emin misiniz?")) return;
-    const docRef = doc(db, "appointments", id);
-    deleteDoc(docRef).catch(async (error) => {
+    try {
+      const docRef = doc(db, "appointments", id);
+      await deleteDoc(docRef);
+    } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: `appointments/${id}`,
         operation: 'delete',
       });
       errorEmitter.emit('permission-error', permissionError);
-    });
+    }
   };
 
   const hours = Array.from({ length: 11 }, (_, i) => `${i + 9}:00`);
-  const beauticians = ['Serdar', 'Elif', 'Fethiye'];
+  const beauticians = ['Zeynep K.', 'Elif S.', 'Eda M.'];
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
