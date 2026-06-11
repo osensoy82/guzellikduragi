@@ -1,0 +1,79 @@
+
+{
+  "entities": {
+    "Customer": {
+      "title": "Müşteri",
+      "description": "Güzellik merkezi müşterisi",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Müşteri adı soyadı" },
+        "phone": { "type": "string", "description": "Telefon numarası" },
+        "email": { "type": "string", "format": "email", "description": "E-posta adresi" },
+        "totalSpend": { "type": "number", "description": "Toplam harcama tutarı" },
+        "debt": { "type": "number", "description": "Mevcut borç miktarı" },
+        "lastVisit": { "type": "string", "format": "date-time", "description": "Son ziyaret tarihi" }
+      },
+      "required": ["name", "phone"]
+    },
+    "Appointment": {
+      "title": "Randevu",
+      "description": "Müşteri randevusu",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "description": "Müşteri referansı" },
+        "customerName": { "type": "string", "description": "Müşteri adı" },
+        "service": { "type": "string", "description": "Hizmet adı" },
+        "time": { "type": "string", "description": "Randevu saati" },
+        "date": { "type": "string", "format": "date", "description": "Randevu tarihi" },
+        "status": { "type": "string", "enum": ["Bekliyor", "Onaylandı", "Tamamlandı", "İptal"], "description": "Randevu durumu" },
+        "beautician": { "type": "string", "description": "Hizmeti verecek uzman" }
+      },
+      "required": ["customerName", "service", "time", "date", "status"]
+    },
+    "InventoryItem": {
+      "title": "Envanter Ürünü",
+      "description": "Stoktaki ürün",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Ürün adı" },
+        "category": { "type": "string", "description": "Kategori" },
+        "stock": { "type": "number", "description": "Mevcut stok adedi" },
+        "price": { "type": "number", "description": "Birim fiyat" },
+        "minLevel": { "type": "number", "description": "Kritik stok seviyesi" }
+      },
+      "required": ["name", "category", "stock", "price"]
+    },
+    "Service": {
+      "title": "Hizmet",
+      "description": "Sunulan hizmet kataloğu",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Hizmet adı" },
+        "price": { "type": "number", "description": "Fiyat" },
+        "duration": { "type": "string", "description": "Süre (dk)" }
+      },
+      "required": ["name", "price", "duration"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Müşteri kayıtları"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Randevu kayıtları"
+    },
+    "/inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Envanter kayıtları"
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Hizmet kataloğu"
+    }
+  }
+}

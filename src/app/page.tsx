@@ -10,23 +10,38 @@ import {
   ArrowUpRight,
   Plus
 } from "lucide-react";
-import { stats, recentAppointments, revenueData } from "@/lib/mock-data";
+import { useCollection, useFirestore } from "@/firebase";
+import { collection, query, orderBy, limit } from "firebase/firestore";
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
   AreaChart, 
-  Area 
+  Area,
+  XAxis,
+  YAxis
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { useMemo } from "react";
 
 export default function DashboardPage() {
+  const db = useFirestore();
+
+  const appointmentsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "appointments"), orderBy("date", "desc"), limit(5));
+  }, [db]);
+
+  const customersQuery = useMemo(() => {
+    if (!db) return null;
+    return collection(db, "customers");
+  }, [db]);
+
+  const { data: appointments = [] } = useCollection(appointmentsQuery);
+  const { data: allCustomers = [] } = useCollection(customersQuery);
+
   const getIcon = (iconName: string) => {
     switch (iconName) {
       case 'calendar': return <Calendar className="text-primary" size={24} />;
@@ -37,12 +52,19 @@ export default function DashboardPage() {
     }
   };
 
+  const dashboardStats = [
+    { label: "Toplam Randevu", value: appointments.length.toString(), change: "Canlı", icon: "calendar" },
+    { label: "Toplam Müşteri", value: allCustomers.length.toString(), change: "Canlı", icon: "users" },
+    { label: "Aylık Gelir", value: "₺0", change: "+0%", icon: "trending-up" },
+    { label: "Stok Uyarısı", value: "0 Ürün", change: "Stabil", icon: "alert-circle" },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">Yönetim Paneli</h1>
-          <p className="text-muted-foreground mt-1">Güzellik Durağı günlük performans özeti.</p>
+          <p className="text-muted-foreground mt-1">İşletme performans özeti (Veriler temizlendi).</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
@@ -56,7 +78,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, i) => (
+        {dashboardStats.map((stat, i) => (
           <Card key={i} className="hover:shadow-md transition-all border-none shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -68,12 +90,8 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
-              <p className={cn(
-                "text-xs mt-1 flex items-center gap-1",
-                stat.change.startsWith('+') ? "text-emerald-500" : "text-destructive"
-              )}>
-                {stat.change.startsWith('+') && <ArrowUpRight size={12} />}
-                {stat.change} bu hafta
+              <p className="text-xs mt-1 text-emerald-500 font-medium flex items-center gap-1">
+                <ArrowUpRight size={12} /> {stat.change}
               </p>
             </CardContent>
           </Card>
@@ -83,62 +101,46 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
         <Card className="lg:col-span-4 border-none shadow-sm overflow-hidden">
           <CardHeader>
-            <CardTitle className="font-headline">Haftalık Gelir Analizi</CardTitle>
-            <CardDescription>Son 7 günün finansal dağılımı</CardDescription>
+            <CardTitle className="font-headline">Gelir Analizi</CardTitle>
+            <CardDescription>Veri girişi yapıldığında grafik güncellenecektir.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[350px] pl-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} tickFormatter={(v) => `₺${v}`} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    borderRadius: '8px', 
-                    border: '1px solid hsl(var(--border))',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                  }}
-                  itemStyle={{ color: 'hsl(var(--primary))' }}
-                />
-                <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <CardContent className="h-[350px] flex items-center justify-center text-muted-foreground italic">
+            Henüz finansal veri bulunmamaktadır.
           </CardContent>
         </Card>
 
         <Card className="lg:col-span-3 border-none shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline">Bekleyen Randevular</CardTitle>
-            <CardDescription>Bugün gerçekleşecek görüşmeler</CardDescription>
+            <CardTitle className="font-headline">Son Randevular</CardTitle>
+            <CardDescription>En son eklenen 5 randevu</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {recentAppointments.map((app) => (
-                <div key={app.id} className="flex items-center justify-between group">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-accent h-10 w-10 rounded-full flex items-center justify-center font-bold text-primary">
-                      {app.customer.charAt(0)}
+              {appointments.length > 0 ? (
+                appointments.map((app: any) => (
+                  <div key={app.id} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-accent h-10 w-10 rounded-full flex items-center justify-center font-bold text-primary">
+                        {app.customerName?.charAt(0) || "R"}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold group-hover:text-primary transition-colors">{app.customerName}</p>
+                        <p className="text-xs text-muted-foreground">{app.service}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold group-hover:text-primary transition-colors">{app.customer}</p>
-                      <p className="text-xs text-muted-foreground">{app.service} - {app.beautician}</p>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{app.time}</p>
+                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                        {app.status}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{app.time}</p>
-                    <Badge variant={app.status === 'İptal' ? 'destructive' : app.status === 'Onaylandı' ? 'default' : 'secondary'} className="text-[10px] h-5 px-1.5">
-                      {app.status}
-                    </Badge>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Kayıtlı randevu bulunmuyor.
                 </div>
-              ))}
+              )}
             </div>
             <Button variant="ghost" className="w-full mt-6 text-primary hover:text-primary/80 font-semibold" asChild>
               <Link href="/appointments">Tümünü Gör</Link>
@@ -148,8 +150,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
 }
