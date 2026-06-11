@@ -10,13 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
-  ChevronRight, 
   Clock, 
   User, 
-  MoreHorizontal,
-  Search,
   Plus
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -97,8 +92,8 @@ export default function AppointmentsPage() {
   const onSubmit = (values: z.infer<typeof appointmentSchema>) => {
     if (!db) return;
     
-    const selectedCustomer = customers.find(c => c.id === values.customerId);
-    const selectedService = services.find(s => s.id === values.serviceId);
+    const selectedCustomer = customers.find((c: any) => c.id === values.customerId);
+    const selectedService = services.find((s: any) => s.id === values.serviceId);
 
     const appointmentsRef = collection(db, "appointments");
     addDoc(appointmentsRef, {
@@ -128,13 +123,13 @@ export default function AppointmentsPage() {
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-headline">Randevu Takvimi</h1>
+          <h1 className="text-3xl font-bold tracking-tight font-headline text-primary">Randevu Takvimi</h1>
           <p className="text-muted-foreground mt-1">Müşterilerinize yeni randevular oluşturun.</p>
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 ml-2">
+              <Button className="gap-2">
                 <Plus size={18} />
                 Yeni Randevu
               </Button>

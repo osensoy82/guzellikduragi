@@ -112,7 +112,7 @@ export default function CustomersPage() {
     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-headline">Müşteri Yönetimi</h1>
+          <h1 className="text-3xl font-bold tracking-tight font-headline text-primary">Müşteri Yönetimi</h1>
           <p className="text-muted-foreground mt-1">Müşteri kayıtlarını buradan yönetebilirsiniz.</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -244,7 +244,7 @@ export default function CustomersPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
                       {loading ? "Yükleniyor..." : "Müşteri kaydı bulunamadı."}
                     </TableCell>
                   </TableRow>

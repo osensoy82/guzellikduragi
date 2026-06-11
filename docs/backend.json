@@ -26,7 +26,8 @@
         "time": { "type": "string", "description": "Randevu saati" },
         "date": { "type": "string", "format": "date", "description": "Randevu tarihi" },
         "status": { "type": "string", "enum": ["Bekliyor", "Onaylandı", "Tamamlandı", "İptal"], "description": "Randevu durumu" },
-        "beautician": { "type": "string", "description": "Hizmeti verecek uzman" }
+        "beautician": { "type": "string", "description": "Hizmeti verecek uzman" },
+        "price": { "type": "number", "description": "Randevu ücreti" }
       },
       "required": ["customerName", "service", "time", "date", "status"]
     },

@@ -21,11 +21,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   Package, 
-  ArrowUpCircle, 
   AlertTriangle,
   Plus,
-  MoreVertical,
-  Filter
+  MoreVertical
 } from "lucide-react";
 import { 
   Dialog, 
@@ -103,7 +101,7 @@ export default function InventoryPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-headline">Stok ve Envanter</h1>
+          <h1 className="text-3xl font-bold tracking-tight font-headline text-primary">Stok ve Envanter</h1>
           <p className="text-muted-foreground mt-1">Ürün stoklarını buradan takip edin.</p>
         </div>
         <div className="flex gap-2">
@@ -220,7 +218,7 @@ export default function InventoryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-xl border">
+          <div className="rounded-xl border overflow-hidden">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
@@ -252,7 +250,7 @@ export default function InventoryPage() {
                               <span>{item.stock} Adet</span>
                               <span>Min: {item.minLevel}</span>
                             </div>
-                            <Progress value={stockPercentage} className={isCritical ? "bg-red-100" : "bg-primary/10"} />
+                            <Progress value={stockPercentage} className={isCritical ? "bg-red-500" : "bg-primary"} />
                           </div>
                         </TableCell>
                         <TableCell>
